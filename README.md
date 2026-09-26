@@ -14,7 +14,7 @@ _See the extension in action converting LaTeX equations to Notion's native math 
 
 ## Features
 
-- **Automatic Conversion**: Detects both inline (`$...$`) and block (`$$...$$`) equations.
+- **Automatic Conversion**: Detects inline (`$...$` and `\(...\)`) and block (`$$...$$` and `\[...\]`) equations.
 - **Keyboard Shortcut**: Convert all equations on the page with `Ctrl+Alt+M` (or use the extension popup).
 
 That's it.
@@ -22,7 +22,7 @@ That's it.
 ## How to Use
 
 1. Install the extension in your browser
-2. Open a Notion page with LaTeX equations (like `$O(n)$` or `$$\int_0^\infty e^{-x^2}dx$$`)
+2. Open a Notion page with LaTeX equations (like `$O(n)$`, `\(O(n)\)`, `$$\int_0^\infty e^{-x^2}dx$$`, or `\[\int_0^\infty e^{-x^2}dx\]`)
 3. Press `Ctrl+Alt+M` (or click the extension icon and hit "Convert")
 4. Watch your equations transform into Notion's native math format
 
@@ -48,7 +48,7 @@ That's it.
 
 ## Technical Notes
 
-The extension uses Notion's existing shortcuts and features to create math blocks. For display equations (`$$...$$`), it uses the `/math` command. For inline equations (`$...$`), it converts them to Notion's inline format by wrapping them as `$$...$$`.
+The extension uses Notion's existing shortcuts and features to create math blocks. It supports display equations written as `$$...$$` or `\[...\]`, and inline equations written as `$...$` or `\(...\)`. The detected content is normalized to Notion's native math input format during conversion.
 
 To reduce visual distraction during conversion, the extension temporarily hides math dialogs using injected CSS. It processes equations sequentially, rescanning the DOM after each conversion to handle Notion's dynamic content updates.
 

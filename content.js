@@ -1,6 +1,7 @@
 console.log("Notion Math Converter content script loaded.");
 
-const EQUATION_REGEX = /(\$\$[\s\S]*?\$\$|\$[^\$\n]*?\$)/;
+const EQUATION_REGEX =
+  /(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\$[^$\n]*?\$|\\\([^\n]*?\\\))/;
 const TIMING = {
   // Wait after focusing an editable block so Notion registers the focus (milliseconds)
   FOCUS: 50,
@@ -46,7 +47,11 @@ async function convertMathEquations() {
       break;
     }
 
-    await convertSingleEquation(equations[0]);
+    const converted = await convertSingleEquation(equations[0]);
+    if (!converted) {
+      console.warn("Stopping conversion to avoid retrying the same equation");
+      break;
+    }
   }
 
   // Remove the injected style
@@ -63,7 +68,7 @@ async function convertSingleEquation({ node, equationText, startIndex }) {
     const editableParent = findEditableParent(node);
     if (!editableParent) {
       console.warn("Could not find editable parent");
-      return;
+      return false;
     }
 
     editableParent.click();
@@ -75,18 +80,19 @@ async function convertSingleEquation({ node, equationText, startIndex }) {
     const selection = window.getSelection();
     if (!selection.rangeCount || selection.toString() !== equationText) {
       console.warn("Selection failed or doesn't match equation text");
-      return;
+      return false;
     }
 
     const normalizedInput = normalizeEquationInput(node, equationText, startIndex);
     if (!normalizedInput) {
       console.warn("Could not normalize equation text:", equationText);
-      return;
+      return false;
     }
 
-    await convertEquationByTyping(normalizedInput);
+    return await convertEquationByTyping(normalizedInput);
   } catch (err) {
     console.error("Equation conversion failed:", err);
+    return false;
   }
 }
 
@@ -94,7 +100,7 @@ async function convertEquationByTyping({ prefix, latexContent, suffix }) {
   const selection = window.getSelection();
   if (!selection.rangeCount || selection.isCollapsed) {
     console.warn("No text selected for equation conversion");
-    return;
+    return false;
   }
 
   const parts = [prefix, "$$", latexContent, "$$", suffix].filter(Boolean);
@@ -104,14 +110,21 @@ async function convertEquationByTyping({ prefix, latexContent, suffix }) {
   }
 
   await delay(TIMING.POST_CONVERT); // Wait for Notion to process the equation conversion
+  return true;
 }
 
 function normalizeEquationInput(node, equationText, startIndex) {
   const isDisplayEquation =
-    equationText.startsWith("$$") && equationText.endsWith("$$");
-  const latexContent = isDisplayEquation
-    ? equationText.slice(2, -2).trim()
-    : equationText.slice(1, -1).trim();
+    (equationText.startsWith("$$") && equationText.endsWith("$$")) ||
+    (equationText.startsWith("\\[") && equationText.endsWith("\\]"));
+  const delimiterLength =
+    isDisplayEquation || equationText.startsWith("\\(") ? 2 : 1;
+  const latexContent = equationText
+    .slice(delimiterLength, -delimiterLength)
+    .trim()
+    // Notion may split insertText at physical line breaks, leaving stray "$$".
+    // LaTeX treats these source line breaks as whitespace, so insert spaces instead.
+    .replace(/[ \t]*[\r\n]+[ \t]*/g, " ");
 
   if (!latexContent) {
     return null;
